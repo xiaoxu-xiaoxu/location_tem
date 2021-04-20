@@ -24,6 +24,8 @@ public class LocationTem{
 
     private static final String CITY = "http://www.weather.com.cn/data/city3jdata/provshi/";
 
+    private static final String AREA =  "http://www.weather.com.cn/data/city3jdata/station/";
+
     private static final String LOCATION_TEM = "http://www.weather.com.cn/data/sk/";
 
     private static final String SUFFIX = ".html";
@@ -37,14 +39,23 @@ public class LocationTem{
     }
 
 
-    public Optional<Integer> getTemperature(String province, String city, String county){
-        String proCode = this.province.get(province);
-        String cityCode, areaCode;
+    public Optional<Double> getTemperature(String province, String city, String county){
+        String cityCode, areaCode,proCode;
+        if((proCode = this.province.get(province)) == null){
+            return Optional.empty();
+        }
         if((cityCode = this.city.get(province + city)) == null){
-            // 初始化city
+            // 如果没有，添加对应code
+            initData(this.city, proCode, province, 1);
+            if((cityCode = this.city.get(province + city)) == null){
+                return Optional.empty();
+            }
         }
         if((areaCode = this.area.get(province + city + county)) == null){
-            // 初始化area
+            initData(this.area, proCode + cityCode, province + city, 2);
+            if((areaCode = this.area.get(province + city + county)) == null){
+                return Optional.empty();
+            }
         }
         String result = HttpUtil.get(LOCATION_TEM + proCode + cityCode + areaCode + SUFFIX);
         JSONObject obj = JSONUtil.parseObj(result);
@@ -54,7 +65,15 @@ public class LocationTem{
         }
         JSONObject jsonObject = JSONUtil.parseObj(weatherInfo);
         String temp = jsonObject.getStr("temp");
-        return Optional.of(Integer.valueOf(temp));
+        return Optional.of(Double.valueOf(temp));
+    }
+
+    private void initData(Map<String, String> map, String s, String ar, int i){
+        String str = HttpUtil.get(i == 1 ? CITY + s + SUFFIX : AREA + s + SUFFIX);
+        JSONObject obj = JSONUtil.parseObj(str);
+        for(Map.Entry<String, Object> entry : obj.entrySet()){
+            map.put(ar + entry.getValue(), entry.getKey());
+        }
     }
 
 }
